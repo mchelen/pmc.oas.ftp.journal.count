@@ -22,16 +22,28 @@ if (!file_exists($sourcefile)) {
   // source file does not exist
   // download file
   downloadfile($sourcepath, $sourcefile, $url);
-
-  dostuff($sourcefile,$outputfile,$outputpath);
-
+  // process newly downloaded file
+  processfile($sourcefile,$outputfile,$outputpath);
+}
+elseif ($_GET['reset']=="true") {
+  // process all files
+  print "<br />\nResetting...";
+  $output = `rm $outputfile`;
+  if ($handle = opendir($sourcepath)) {
+    while (false !== ($file = readdir($handle))) {
+      if ($file != "." && $file != "..") {
+        processfile("$sourcepath/$file",$outputfile,$outputpath);
+      }
+    }
+  }
 }
 // current source file already exists
 else {
   print "<br />\n$sourcefile already exists, xml file untouched <a href=\"$outputfile\">$outputfile</a>";
 }
 
-function dostuff($sourcefile,$outputfile,$outputpath){
+
+function processfile($sourcefile,$outputfile,$outputpath){
   // get journal counts from source file
   echo "<br />\nGetting journal counts from $sourcefile";
   $journalcounts = getjournalcounts($sourcefile);
