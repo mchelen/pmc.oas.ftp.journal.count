@@ -5,6 +5,7 @@
  * downloads pmc open access subset ftp file list and computes article counts for each journal
  * source: ftp://ftp.ncbi.nlm.nih.gov/pub/pmc/file_list.txt
  */
+ 
 // file url
 $url = "ftp://ftp.ncbi.nlm.nih.gov/pub/pmc/file_list.txt";
 // output file path
