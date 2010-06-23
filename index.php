@@ -43,6 +43,16 @@ else {
   print "<br />\n$sourcefile already exists, xml file untouched <a href=\"$outputfile\">$outputfile</a>";
 }
 
+// generate some kind of display from output.xml
+$doc = new DOMDocument;
+$doc->Load($outputfile);
+$xpath = new DOMXPath($doc);
+$query = '//book/*';
+$entries = $xpath->query($query);
+foreach ($entries as $entry) {
+    echo "$entry->nodeValue\n";
+}
+
 
 function processfile($sourcefile,$outputfile,$outputpath){
   // get journal counts from source file
