@@ -26,9 +26,9 @@ if (!file_exists($sourcefile)) {
   // process newly downloaded file
   processfile($sourcefile,$outputfile,$outputpath);
 }
-elseif ($_GET['reset']=="true") {
+elseif (isset($_GET['rebuild'])) {
   // process all files
-  print "<br />\nResetting...";
+  print "<br />\nRebuilding output from source files";
   $output = `rm $outputfile`;
   if ($handle = opendir($sourcepath)) {
     while (false !== ($file = readdir($handle))) {
