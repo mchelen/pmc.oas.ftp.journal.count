@@ -78,53 +78,8 @@ else {
 
 
 // generate some kind of display from output.xml
-$doc = new DOMDocument;
-$doc->Load($outputfile);
-$journalhistories = array();
-$numdatasets=0;
-$xpath = new DOMXPath($doc);
-$query = "//dataset";
-$entries = $xpath->query($query);
-foreach ($entries as $entry) {
-  $numdatasets++;
-}
-$xpath = new DOMXPath($doc);
-for ($i=0;$i<=$numdatasets;$i++) {
-  $query = "//dataset[$i]/journal";
-//  print "Performing query: $query \n";
-  $entries = $xpath->query($query);
-  foreach ($entries as $entry) {
-    $timestamp = $entry->parentNode->getAttribute("date");
-    $title = $entry->getAttribute("title");
-    $count = $entry->nodeValue;
-    if(!isset($journalhistories[$title])) {
-      $journalhistories[$title]=array();
-    }
-    array_push($journalhistories[$title],array("timestamp"=>$timestamp, "count"=>$count));
-  }
-}
-print "Writing flot JS file $outputpath/flot.js\n";
-$flotjs = "";
-$flotjs2 = "\n$.plot($(\"#placeholder\"), [ ";
-$i=1;
-foreach($journalhistories as $key => $value) {
-  $flotjs .= "var d$i = ";
-  $flotjs2 .= "d$i, ";
-  $journalhistory = $value;
-  $flotjs .= "[";
-  foreach ($journalhistory as $historypoint) {
-    $flotjs .= "[".strtotime($historypoint["timestamp"]);
-    $flotjs .= ", ".$historypoint["count"]."], ";
-//   $flotjs format is [[0, 3], [4, 8], [8, 5], [9, 13]];
-// [[x, y], [x, y], x y,
-  }
-  $flotjs .= "] \n";
-  $i++;
-}
-$flotjs2 .= " ]);";  
-$fh = fopen("$outputpath/flot.js", 'w') or die("can't open file");
-fwrite($fh, $flotjs.$flotjs2);
-fclose($fh);
+makeflotjs($outputfile,$outputpath);
+
 // if(webpage()) {print "</pre>";}
 
 ?>
