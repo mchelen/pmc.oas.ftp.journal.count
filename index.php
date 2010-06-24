@@ -5,7 +5,21 @@
  * downloads pmc open access subset ftp file list and computes article counts for each journal
  * source: ftp://ftp.ncbi.nlm.nih.gov/pub/pmc/file_list.txt
  */
- 
+
+// get command line parameters
+$shortopts = "r";
+$longopts = array(
+"rebuild", // no value
+);
+$options = getopt($shortopts,$longopts);
+// var_dump($options);
+
+// echo $_SERVER['REMOTE_ADDR'];
+
+// if(webpage()) {print "<pre>";}
+//else {echo "running in shell";}
+
+
 // file url
 $url = "ftp://ftp.ncbi.nlm.nih.gov/pub/pmc/file_list.txt";
 // output file path
@@ -26,37 +40,126 @@ if (!file_exists($sourcefile)) {
   // process newly downloaded file
   processfile($sourcefile,$outputfile,$outputpath);
 }
-elseif (isset($_GET['rebuild'])) {
+elseif (isset($_GET['rebuild'])||isset($options["rebuild"])) {
   // process all files
-  print "<br />\nRebuilding output from source files";
-  $output = `rm $outputfile`;
+  print "Rebuilding output from source files\n";
+  
+  // remove output file if it exists
+  if(file_exists($outputfile)){
+    print "Removing old $outputfile \n";
+    $output = `rm $outputfile`;
+  }
+ 
+  // initialize array
+  $dircontents = array();
+  // read list of files in source directory
   if ($handle = opendir($sourcepath)) {
     while (false !== ($file = readdir($handle))) {
       if ($file != "." && $file != "..") {
-        processfile("$sourcepath/$file",$outputfile,$outputpath);
+        array_push($dircontents,"$sourcepath/$file");
       }
     }
+  }
+// run processfille on each file (in alphanumeric order"
+  foreach ($dircontents as $dircontent) {
+    processfile(array_pop($dircontents),$outputfile,$outputpath);
   }
 }
 // current source file already exists
 else {
-  print "<br />\n$sourcefile already exists, xml file untouched <a href=\"$outputfile\">$outputfile</a>";
+  if(webpage()) { print "<br />";}
+  print "Current source file exists: $sourcefile \nXML output file untouched: ";
+  if(webpage()) { print "<a href=\"$outputfile\">$outputfile</a>"; }
+  else {print $outputfile;}
+  print ("\n");
 }
+
 
 // generate some kind of display from output.xml
 $doc = new DOMDocument;
 $doc->Load($outputfile);
+
+$journalhistories = array();
+
+$numdatasets=0;
+
 $xpath = new DOMXPath($doc);
-$query = '//book/*';
+$query = "//dataset";
 $entries = $xpath->query($query);
 foreach ($entries as $entry) {
-    echo "$entry->nodeValue\n";
+  $numdatasets++;
 }
+
+$xpath = new DOMXPath($doc);
+
+for ($i=0;$i<=$numdatasets;$i++) {
+  $query = "//dataset[$i]/journal";
+//  print "Performing query: $query \n";
+  $entries = $xpath->query($query);
+  foreach ($entries as $entry) {
+    $timestamp = $entry->parentNode->getAttribute("date");
+    $title = $entry->getAttribute("title");
+    $count = $entry->nodeValue;
+    if(!isset($journalhistories[$title])) {
+      $journalhistories[$title]=array();
+    }
+    array_push($journalhistories[$title],array("timestamp"=>$timestamp, "count"=>$count));
+  }
+}
+
+print "Writing flot JS file $outputpath/flot.js\n";
+
+$flotjs = "";
+$flotjs2 = "\n$.plot($(\"#placeholder\"), [ ";
+
+// [ d1, d2, d3 ]
+
+
+$i=1;
+foreach($journalhistories as $key => $value) {
+  $flotjs .= "var d$i = ";
+  $flotjs2 .= "d$i, ";
+  
+  $journalhistory = $value;
+  
+  $flotjs .= "[";
+  
+  foreach ($journalhistory as $historypoint) {
+    $flotjs .= "[".strtotime($historypoint["timestamp"]);
+    $flotjs .= ", ".$historypoint["count"]."], ";
+//     $flotjs .= [[0, 3], [4, 8], [8, 5], [9, 13]];
+  }
+  $flotjs .= "] \n";
+  
+// [[0, 3], [4, 8], [8, 5], [9, 13]];
+// x y, x y, x y,
+
+  $i++;
+}
+
+$flotjs2 .= " ]);";  
+
+$fh = fopen("$outputpath/flot.js", 'w') or die("can't open file");
+fwrite($fh, $flotjs.$flotjs2);
+fclose($fh);
+
+// desired format: [[0, 3], [4, 8], [8, 5], [9, 13]];
+
+// if(webpage()) {print "</pre>";}
+
+
+
+
+
+
+// functions
+
 
 
 function processfile($sourcefile,$outputfile,$outputpath){
   // get journal counts from source file
-  echo "<br />\nGetting journal counts from $sourcefile";
+  if(webpage()){print "<br />";}
+  print "Getting journal counts from $sourcefile\n";
   $journalcounts = getjournalcounts($sourcefile);
   // generate xml
   $xml = makexml($journalcounts["journals"], $journalcounts["timestamp"]);
@@ -65,20 +168,30 @@ function processfile($sourcefile,$outputfile,$outputpath){
   // load xml file if it exists
   if (file_exists($outputfile)) {
     // append new xml to existing
-    print "<br />\nAppending data to xml file <a href=\"$outputfile\">$outputfile</a>";
+    if (webpage()) { print "<br />";}
+    print "Appending data to xml file ";
+    if (webpage()) { print "<a href=\"$outputfile\">$outputfile</a>\n";}
+    else { print "$outputfile\n";}
     appendxml($outputfile, $recordset);
   }
   else {
-    print "<br />\nWriting new xml file <a href=\"$outputfile\">$outputfile</a>";
+  // print writing new xml file messages
+    if (webpage()) { print "<br />Writing new xml file <a href=\"$outputfile\">$outputfile</a>\n";}
+    else { print "Writing new XML file $outputfile \n";}
     // xml output file does not exist
     $output = `mkdir -p $outputpath`;
     writenewxml($doc, $outputfile);
   }
  
 }
-
-
-
+function webpage() {
+  if(empty($_SERVER['REMOTE_ADDR'])){
+    return false;
+  }
+  else {
+    return true;
+  }
+}
 function gettimestamp($url) {
   // gets timestamp from first line of remote file
   // open remote file
